@@ -1,0 +1,67 @@
+version: 2
+
+# Kaplan-Meier on data small enough to compute by hand. Each job: first seen
+# 2026-03-01, last seen `days` later.
+#   Board a: closes at 1, 3 and 5 days, one still open after 2 days
+#     S(1) = 3/4, S(3) = 3/4 × 1/2 = 0.375  →  median 3 days
+#   Board b: two close after 1 day, three still open after 9 days
+#     S(1) = 3/5 = 0.6 and nothing else closes  →  median not reached;
+#     the median of closed jobs alone says 1 day.
+#   All 9 together: S(1) = 6/9, S(3) = 6/9 × 4/5 = 0.533, S(5) = 0.533 × 3/4 = 0.4
+#     →  median 5 days, while the median of closed jobs alone (1,1,1,3,5) is 1.
+#   A NEW_COHORT job is ignored: its first sighting is not its publication.
+unit_tests:
+  - name: kaplan_meier_counts_jobs_that_are_still_open
+    model: gold_time_to_close
+    given:
+      - input: ref('silver_job_events')
+        rows:
+          - {job_tracking_id: a1, event_type: JOB_OPENED, open_reason: NEW_POSTING}
+          - {job_tracking_id: a2, event_type: JOB_OPENED, open_reason: NEW_POSTING}
+          - {job_tracking_id: a3, event_type: JOB_OPENED, open_reason: NEW_POSTING}
+          - {job_tracking_id: a4, event_type: JOB_OPENED, open_reason: NEW_POSTING}
+          - {job_tracking_id: b1, event_type: JOB_OPENED, open_reason: NEW_POSTING}
+          - {job_tracking_id: b2, event_type: JOB_OPENED, open_reason: NEW_POSTING}
+          - {job_tracking_id: b3, event_type: JOB_OPENED, open_reason: NEW_POSTING}
+          - {job_tracking_id: b4, event_type: JOB_OPENED, open_reason: NEW_POSTING}
+          - {job_tracking_id: b5, event_type: JOB_OPENED, open_reason: NEW_POSTING}
+          - {job_tracking_id: c1, event_type: JOB_OPENED, open_reason: NEW_COHORT}
+      - input: ref('silver_job_attributes')
+        rows:
+          - {job_tracking_id: a1, role_family: data, first_exported_at: "2026-01-01 00:00:00"}
+      - input: ref('stg_job_state')
+        rows:
+          - {job_tracking_id: a1, collector: a, job_category: data_ai, status: CLOSED, first_seen_at: "2026-03-01 00:00:00", last_seen_at: "2026-03-02 00:00:00"}
+          - {job_tracking_id: a2, collector: a, status: OPEN,   first_seen_at: "2026-03-01 00:00:00", last_seen_at: "2026-03-03 00:00:00"}
+          - {job_tracking_id: a3, collector: a, status: CLOSED, first_seen_at: "2026-03-01 00:00:00", last_seen_at: "2026-03-04 00:00:00"}
+          - {job_tracking_id: a4, collector: a, status: CLOSED, first_seen_at: "2026-03-01 00:00:00", last_seen_at: "2026-03-06 00:00:00"}
+          - {job_tracking_id: b1, collector: b, status: CLOSED, first_seen_at: "2026-03-01 00:00:00", last_seen_at: "2026-03-02 00:00:00"}
+          - {job_tracking_id: b2, collector: b, status: CLOSED, first_seen_at: "2026-03-01 00:00:00", last_seen_at: "2026-03-02 00:00:00"}
+          - {job_tracking_id: b3, collector: b, status: OPEN,   first_seen_at: "2026-03-01 00:00:00", last_seen_at: "2026-03-10 00:00:00"}
+          - {job_tracking_id: b4, collector: b, status: OPEN,   first_seen_at: "2026-03-01 00:00:00", last_seen_at: "2026-03-10 00:00:00"}
+          - {job_tracking_id: b5, collector: b, status: OPEN,   first_seen_at: "2026-03-01 00:00:00", last_seen_at: "2026-03-10 00:00:00"}
+          - {job_tracking_id: c1, collector: b, status: CLOSED, first_seen_at: "2026-03-01 00:00:00", last_seen_at: "2026-03-01 00:00:00"}
+    expect:
+      rows:
+        - {dimension: all, value: all, jobs: 9, closed: 5, still_open: 4, median_days_open_km: 5, median_days_closed_only: 1, share_open_after_7d: 0.4}
+        - {dimension: collector, value: a, jobs: 4, closed: 3, still_open: 1, median_days_open_km: 3, median_days_closed_only: 3, share_open_after_7d: null}
+        - {dimension: collector, value: b, jobs: 5, closed: 2, still_open: 3, median_days_open_km: null, median_days_closed_only: 1, share_open_after_7d: 0.6}
+        - {dimension: job_category, value: data_ai, jobs: 1, closed: 1, still_open: 0, median_days_open_km: 1, median_days_closed_only: 1, share_open_after_7d: null}
+        - {dimension: role_family, value: data, jobs: 1, closed: 1, still_open: 0, median_days_open_km: 1, median_days_closed_only: 1, share_open_after_7d: null}
+
+  - name: role_family_only_covers_jobs_seen_after_attribute_capture
+    model: gold_time_to_close
+    given:
+      - input: ref('silver_job_events')
+        rows:
+          - {job_tracking_id: a1, event_type: JOB_OPENED, open_reason: NEW_POSTING}
+      - input: ref('silver_job_attributes')
+        rows:
+          - {job_tracking_id: a1, role_family: data, first_exported_at: "2026-06-01 00:00:00"}
+      - input: ref('stg_job_state')
+        rows:
+          - {job_tracking_id: a1, collector: a, status: CLOSED, first_seen_at: "2026-03-01 00:00:00", last_seen_at: "2026-03-02 00:00:00"}
+    expect:
+      rows:
+        - {dimension: all, value: all, jobs: 1}
+        - {dimension: collector, value: a, jobs: 1}

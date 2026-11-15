@@ -1,0 +1,38 @@
+version: 2
+
+# Bronze, written outside dbt:
+#   duckdb      Parquet files from tools/build_lakehouse.py --bronze-only
+#               (external_location, read in place)
+#   databricks  Delta tables loaded by Auto Loader (databricks/src/bronze_autoloader.py)
+sources:
+  - name: bronze
+    description: Immutable lifecycle files from the daily pipeline.
+    schema: "{{ 'main' if target.type == 'duckdb' else target.schema }}"
+    tables:
+      - name: bronze_events
+        description: One row per lifecycle event (JOB_OPENED, JOB_CLOSED...), one file per run.
+        config:
+          meta:
+            external_location: >-
+              read_parquet('{{ env_var("LAKE_ROOT", "lakehouse") }}/bronze/events/*/*.parquet',
+              hive_partitioning = true, union_by_name = true)
+      - name: bronze_job_attributes
+        description: Classification of each exported job (role family, seniority...), one file per export.
+        config:
+          meta:
+            external_location: >-
+              read_parquet('{{ env_var("LAKE_ROOT", "lakehouse") }}/bronze/job_attributes/*/*.parquet',
+              hive_partitioning = true, union_by_name = true)
+      - name: bronze_run_health
+        description: Fetcher status and volumes per run and source, from the run manifests.
+        config:
+          meta:
+            external_location: >-
+              read_parquet('{{ env_var("LAKE_ROOT", "lakehouse") }}/bronze/run_health/*/*.parquet',
+              hive_partitioning = true, union_by_name = true)
+      - name: bronze_job_state
+        description: Current lifecycle state per job (first/last seen, status), replaced each run.
+        config:
+          meta:
+            external_location: >-
+              read_parquet('{{ env_var("LAKE_ROOT", "lakehouse") }}/bronze/job_state.parquet')

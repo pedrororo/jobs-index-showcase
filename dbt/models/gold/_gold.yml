@@ -1,0 +1,26 @@
+version: 2
+
+models:
+  - name: gold_daily_lifecycle
+    description: New postings and real closures per day, apart from coverage changes and rerun artifacts.
+    columns:
+      - name: collection_date
+        data_tests: [unique, not_null]
+
+  - name: gold_time_to_close
+    description: Kaplan-Meier days open of new postings, overall, by collector, by job category and by role family.
+    columns:
+      - name: dimension
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [all, collector, job_category, role_family]
+
+  - name: gold_quality_checks
+    description: Data quality checks for every run (ERROR / WARN / INFO); see docs/DATA_QUALITY.md.
+    columns:
+      - name: severity
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [ERROR, WARN, INFO]

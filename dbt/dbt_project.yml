@@ -1,0 +1,32 @@
+# One set of lakehouse models for two engines:
+#   dbt build --target duckdb       local Parquet files (lakehouse/bronze), CI
+#   dbt build --target databricks   Delta tables in workspace.remote_jobs
+# In this showcase, bronze is fake: python export_bronze.py writes it (see README.md).
+name: remote_jobs
+version: "1.0.0"
+config-version: 2
+profile: remote_jobs
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+snapshot-paths: ["snapshots"]
+clean-targets: ["target", "dbt_packages"]
+
+flags:
+  send_anonymous_usage_stats: false
+
+vars:
+  # A job closes only after this many hours missing (see docs/LAKEHOUSE.md).
+  min_close_hours: 36
+
+models:
+  remote_jobs:
+    +materialized: table
+    silver:
+      +tags: ["silver"]
+    gold:
+      +tags: ["gold"]
+    staging:
+      +materialized: view
+      +tags: ["staging"]

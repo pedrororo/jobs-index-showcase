@@ -1,0 +1,53 @@
+version: 2
+
+models:
+  - name: silver_job_events
+    description: >
+      One row per lifecycle event, with open_reason (was the job published, or
+      did we just start collecting its source?) and is_reliable_close (missing
+      long enough, not just several reruns in a day).
+    columns:
+      - name: event_id
+        description: Deterministic hash of run, job and event type.
+        data_tests: [unique, not_null]
+      - name: job_tracking_id
+        data_tests: [not_null]
+      - name: event_type
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [JOB_OPENED, JOB_UPDATED, FIELD_CHANGED, JOB_MISSING, JOB_CLOSED, JOB_REOPENED, JOB_RETURNED]
+      - name: open_reason
+        description: Set on JOB_OPENED only. Only NEW_POSTING means a job was published.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [BASELINE, NEW_COHORT, NEW_POSTING, BACKFILL]
+      - name: is_reliable_close
+        description: Set on JOB_CLOSED only; false when the job closed less than min_close_hours after its first miss.
+
+  - name: silver_job_attributes
+    description: Latest classification per job (SCD Type 1).
+    columns:
+      - name: job_tracking_id
+        data_tests: [unique, not_null]
+
+  - name: silver_job_history_scd2
+    description: >
+      SCD Type 2 history: one version per run that changed a job. Incremental:
+      MERGE on Databricks, delete+insert on DuckDB.
+    columns:
+      - name: job_tracking_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('silver_job_events')
+                field: job_tracking_id
+      - name: valid_from
+        data_tests: [not_null]
+      - name: status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [OPEN, POSSIBLY_CLOSED, CLOSED]

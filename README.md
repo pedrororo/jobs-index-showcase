@@ -17,7 +17,10 @@ weeks of discovery work. What is here:
 - what broke and how I fixed it;
 - [`sample/`](sample): a small runnable version of two core ideas (lifecycle
   snapshots and Kaplan-Meier time to close) on **fake data**, Python standard
-  library only.
+  library only;
+- [`dbt/`](dbt): the **real dbt models, macros and tests** from the pipeline
+  (bronze → silver → gold, SCD Type 2, Kaplan-Meier, quality checks), running
+  on fake bronze data with `dbt build`.
 
 ---
 
@@ -137,7 +140,8 @@ every job, latest attributes) and gold (daily new postings and closures, time
 to close). The same models run on two targets: DuckDB locally and in CI, in
 seconds, and Databricks (Unity Catalog, Auto Loader, incremental SCD2 with
 `MERGE`, a job defined as an Asset Bundle). Dialect differences live in six
-adapter-dispatch macros.
+adapter-dispatch macros. The models, the data model and the tests are in
+[`dbt/`](dbt), runnable on fake data.
 
 **Why dbt.** The models used to be SQL strings rendered from Python, run in a
 hard-coded order, fully rebuilt every day, with a second copy for Databricks.
@@ -315,6 +319,21 @@ python3 -m unittest discover -s sample -v
 It shows the close rule ignoring a failed source, the reason on each opened
 event, and the gap between the Kaplan-Meier median and the closed-only median.
 See [sample/README.md](sample/README.md).
+
+## The dbt project
+
+[`dbt/`](dbt) holds the pipeline's real dbt models and tests. The fake market
+from the sample is written out as bronze Parquet, and `dbt build` runs all 10
+models, 19 data tests and 2 unit tests on DuckDB in about a second:
+
+```bash
+pip install -r dbt/requirements.txt
+python dbt/export_bronze.py && (cd dbt && dbt build --profiles-dir .)
+```
+
+On the day the fake board fails, `gold_quality_checks` blocks publishing.
+[dbt/README.md](dbt/README.md) has the data model, the SCD Type 2 layout and
+what each test checks.
 
 ## Stack
 

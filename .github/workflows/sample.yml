@@ -20,3 +20,18 @@ jobs:
           python-version: ${{ matrix.python }}
       - run: python -m unittest discover -s sample -v
       - run: python sample/run_sample.py
+
+  dbt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r dbt/requirements.txt
+      - run: python dbt/export_bronze.py
+      - run: dbt build --profiles-dir .
+        working-directory: dbt
+      # Second build: the SCD Type 2 model takes its incremental path.
+      - run: dbt build --profiles-dir .
+        working-directory: dbt
