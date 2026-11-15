@@ -1,7 +1,7 @@
 # Jobs Index: case study
 
 A job-market data pipeline I designed and run on my own. Every day it collects
-public job postings from job boards, Brazilian job portals and a few thousand
+public job postings from job boards, Brazilian job portals and about 9,800
 company career boards, tracks each posting over time, and publishes a free,
 searchable site.
 
@@ -235,16 +235,17 @@ any pull request could run code on it.
 
 ## Numbers
 
-Counts change with every merge; these are from late October 2026.
+Counts change with every merge; these are from mid-November 2026 unless noted.
 
 | | |
 | --- | --- |
-| Company career boards | about 3,300 to 3,900, across 10+ ATS vendors |
-| Jobs fetched per day | about 400k (386k exported to the site after one run) |
-| Daily run | about 2 h 20 min for ~427k jobs, peak RAM ~4 GB on the VM |
+| Company career boards | about 9,800, across 25+ ATS platforms (about 5,000 added in two weeks, in 10 screened batches) |
+| Jobs per daily export | about 700k (699,457 on 2026-11-14) from 16,000+ companies |
+| Daily run (late October) | about 2 h 20 min for ~427k jobs, peak RAM ~4 GB on the VM |
 | Peak memory after streaming | 2.81 GB at 232k jobs, down from 5.05 GB at 171k |
+| Alert job memory | 8.2 GB → 2.4 GB after streaming the Parquet export in batches |
 | Lakehouse verification | 0 differing rows across six tables, DuckDB vs old SQL |
-| Tests | 150+ offline unit tests on every push, 19 dbt data tests, Kaplan-Meier unit tests |
+| Tests | 400+ automated tests on every push, 19 dbt data tests, Kaplan-Meier unit tests |
 | Cost | $0 a month |
 
 ## What failed, and how I fixed it
@@ -297,7 +298,8 @@ minutes, with a run that needs about 4,300 a month. Fix: the self-hosted runner
 ## Still open
 
 - Run the Databricks job from dbt and delete its SQL copy.
-- Split the largest files (the ATS fetcher is about 2,300 lines).
+- Keep splitting the ATS fetcher (Workday, SmartRecruiters, InHire and Teamtailor
+  already have their own modules).
 - Measure each new batch of boards in the daily run before adding the next one.
 
 ## The sample
